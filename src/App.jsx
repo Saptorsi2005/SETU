@@ -10,6 +10,7 @@ import Events from "./pages/Events";
 import AddEvents from "./pages/AddEvents";
 import Post from "./pages/Post";
 import MentorProfile from "./pages/MentorProfile";
+import Donations from "./pages/Donations";
 // import Feed from "./pages/Feed";
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
         <Route path="/addEvents" element={<AddEvents />} />
         <Route path="/post" element={<Post />} />
         <Route path="/mentor/:name" element={<MentorProfile />} />
+        <Route path="/donations" element={<Donations />} />
         {/* <Route path="/feed" element={<Feed />} /> */}
       </Routes>
     </div>
