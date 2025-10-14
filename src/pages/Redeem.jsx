@@ -54,7 +54,7 @@ export default function RedeemPage() {
       <Navbar/>
 
       {/* Title */}
-      <h1 className="text-3xl font-bold text-center mt-8 tracking-wide">REDEEM</h1>
+      <h1 className="pt-20 text-3xl font-bold text-center mt-8 tracking-wide">REDEEM</h1>
 
       {/* Grid of rewards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-8 py-12 place-items-center">
