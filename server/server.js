@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import eventRoutes from './routes/eventRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import pool from './config/database.js';
 
@@ -41,6 +42,7 @@ app.get('/', (req, res) => {
     endpoints: {
       auth: '/api/auth',
       admin: '/api/admin',
+      events: '/api/events',
     },
   });
 });
@@ -56,6 +58,7 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/events', eventRoutes);
 
 // Error handling middleware (must be last)
 app.use(notFound);
