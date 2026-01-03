@@ -1,40 +1,56 @@
 import React, { useState } from "react";
 import { assets } from "../assets/assets";
-import "./LoginLanding.css"; // For slide-up animation
+import "./LoginLanding.css";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "../context/UserContext"; // ✅ import context
+import { useUser } from "../context/UserContext";
+import { adminAPI } from "../services/api";
 
 const AdminLogin = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const { setUser } = useUser(); // ✅ get setUser from context
+  const { setUser } = useUser();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError(""); // Clear error on input change
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    console.log("Admin Login Data:", formData);
+    try {
+      // Call the admin login API
+      const response = await adminAPI.login({
+        email: formData.email,
+        password: formData.password,
+      });
 
-    // ✅ Simulate login success and set admin user context
-    const adminUser = {
-      name: "Admin",
-      email: formData.email,
-      role: "admin",
-    };
+      if (response.success) {
+        // Store token and admin data
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.admin));
 
-    setUser(adminUser); // ✅ update context
-    localStorage.setItem("user", JSON.stringify(adminUser)); // optional persistence
+        // Set user context
+        setUser(response.data.admin);
 
-    // ✅ Redirect to admin dashboard
-    navigate("/directory");
+        // Navigate to admin dashboard
+        navigate("/directory");
+      }
+    } catch (err) {
+      console.error("Admin login error:", err);
+      setError(err.response?.data?.message || "Login failed. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,6 +85,13 @@ const AdminLogin = () => {
         <h2 className="text-3xl font-bold mb-6 text-center text-white drop-shadow-md">
           Admin Login
         </h2>
+        
+        {error && (
+          <div className="bg-red-500/80 text-white px-4 py-3 rounded-xl mb-4">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Email */}
           <input
@@ -79,6 +102,7 @@ const AdminLogin = () => {
             placeholder="Admin Email"
             className="border border-white/50 text-gray-900 px-4 py-3 rounded-xl bg-white/60 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/70 transition"
             required
+            disabled={loading}
           />
 
           {/* Password */}
@@ -90,14 +114,16 @@ const AdminLogin = () => {
             placeholder="Password"
             className="border border-white/50 text-gray-900 px-4 py-3 rounded-xl bg-white/60 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/70 transition"
             required
+            disabled={loading}
           />
 
           {/* Submit Button */}
           <button
             type="submit"
-            className="bg-white/30 text-white py-3 rounded-xl font-semibold hover:bg-white/50 transition"
+            className="bg-white/30 text-white py-3 rounded-xl font-semibold hover:bg-white/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
       </div>

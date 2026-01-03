@@ -2,45 +2,62 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { assets } from "../assets/assets";
 import './LoginLanding.css';
-import { useUser } from "../context/UserContext"; // Import the context
+import { useUser } from "../context/UserContext";
+import { authAPI } from "../services/api";
 
 const StudentLogin = () => {
   const [formData, setFormData] = useState({
-    name: "",
-    college: "",
     email: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
-  const { setUser } = useUser(); // Get setUser from context
-
-  const colleges = [
-    "IIT Bombay",
-    "IIT Delhi",
-    "IIT Kharagpur",
-    "IIT Madras",
-    "Other",
-  ];
+  const { setUser } = useUser();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError(""); // Clear error on input change
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Student Login Data:", formData);
+    setLoading(true);
+    setError("");
 
-    // Set user context with role "student"
-    setUser({
-      name: formData.name,
-      email: formData.email,
-      college: formData.college,
-      role: "student", // role is "student" here
-    });
+    try {
+      // Call the login API
+      const response = await authAPI.login({
+        email: formData.email,
+        password: formData.password,
+      });
 
-    navigate("/home");
+      if (response.success) {
+        // Check if user is a student
+        if (response.data.user.role !== "student") {
+          setError("This login is for students only. Please use the correct login page.");
+          setLoading(false);
+          return;
+        }
+
+        // Store token and user data
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+
+        // Set user context
+        setUser(response.data.user);
+
+        // Navigate to home
+        navigate("/home");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError(err.response?.data?.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const goToSignup = () => {
@@ -77,34 +94,13 @@ const StudentLogin = () => {
           Student Login
         </h2>
 
+        {error && (
+          <div className="bg-red-500/80 text-white px-4 py-3 rounded-xl mb-4">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Full Name"
-            className="border border-white/50 text-gray-900 px-4 py-3 rounded-xl bg-white/60 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/70 transition"
-            required
-          />
-
-          <select
-            name="college"
-            value={formData.college}
-            onChange={handleChange}
-            className="border border-white/50 text-gray-900 px-4 py-3 rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-white/70 transition"
-            required
-          >
-            <option value="" disabled>
-              Select College
-            </option>
-            {colleges.map((c, idx) => (
-              <option key={idx} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-
           <input
             type="email"
             name="email"
@@ -113,6 +109,7 @@ const StudentLogin = () => {
             placeholder="College Email"
             className="border border-white/50 text-gray-900 px-4 py-3 rounded-xl bg-white/60 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/70 transition"
             required
+            disabled={loading}
           />
 
           <input
@@ -123,22 +120,25 @@ const StudentLogin = () => {
             placeholder="Password"
             className="border border-white/50 text-gray-900 px-4 py-3 rounded-xl bg-white/60 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/70 transition"
             required
+            disabled={loading}
           />
 
           <button
             type="submit"
-            className="bg-white/30 text-white py-3 rounded-xl font-semibold hover:bg-white/50 transition"
+            className="bg-white/30 text-white py-3 rounded-xl font-semibold hover:bg-white/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
         <p className="text-center text-white mt-4">
           Don't have an account?{" "}
           <button
-            onClick={goToSignup}
+            onClick={() => navigate("/studentSignup")}
             className="underline font-semibold hover:text-gray-300 focus:outline-none"
             type="button"
+            disabled={loading}
           >
             Signup
           </button>
