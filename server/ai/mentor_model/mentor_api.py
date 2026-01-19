@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from model import recommend_mentors
 
 app = Flask(__name__)
+CORS(app)   # ✅ THIS IS THE FIX
 
 @app.route("/mentor-recommend", methods=["POST"])
 def mentor_recommend():
