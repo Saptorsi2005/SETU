@@ -1,6 +1,7 @@
 import pool from '../config/database.js';
 import { hashPassword, comparePassword, sanitizeUser, isValidEmail, isStrongPassword } from '../utils/helpers.js';
 import { generateToken, generateRefreshToken } from '../utils/jwt.js';
+import { uploadDocumentToCloudinary } from '../config/cloudinary.js';
 
 // Register a new user (student or alumni)
 export const register = async (req, res, next) => {
@@ -72,8 +73,11 @@ export const register = async (req, res, next) => {
       role: user.role,
     });
 
-    // Remove password from response
-    const userResponse = sanitizeUser(user);
+    // Normalize user data to match app expectations
+    const userResponse = {
+      ...sanitizeUser(user),
+      user_id: user.id, // Normalize ID field
+    };
 
     res.status(201).json({
       success: true,
@@ -84,6 +88,117 @@ export const register = async (req, res, next) => {
       },
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// Alumni signup with document upload (separate from general register)
+export const alumniSignup = async (req, res, next) => {
+  try {
+    const { name, email, password, college, batch_year, current_company, current_position } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields: name, email, and password.',
+      });
+    }
+
+    // Validate email
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address.',
+      });
+    }
+
+    // Validate password
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long.',
+      });
+    }
+
+    const lowerEmail = email.toLowerCase();
+
+    // Check if user already exists
+    const existingUser = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [lowerEmail]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'A user with this email already exists.',
+      });
+    }
+
+    // Handle document upload
+    let documentUrl = null;
+    if (req.file) {
+      try {
+        documentUrl = await uploadDocumentToCloudinary(
+          req.file.buffer,
+          req.file.mimetype,
+          'setu/alumni_docs'
+        );
+      } catch (uploadError) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload verification document. Please try again.',
+        });
+      }
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Create new alumni user
+    const result = await pool.query(
+      `INSERT INTO users (name, email, password, role, college, batch_year, current_company, current_position, verification_document)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        name,
+        lowerEmail,
+        hashedPassword,
+        'alumni',
+        college || 'Academy of Technology',
+        batch_year || null,
+        current_company || null,
+        current_position || null,
+        documentUrl
+      ]
+    );
+
+    const user = result.rows[0];
+
+    // Generate token
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    // Normalize user data to match app expectations
+    const userResponse = {
+      ...sanitizeUser(user),
+      user_id: user.id,
+    };
+
+    res.status(201).json({
+      success: true,
+      message: 'Alumni account created successfully!',
+      data: {
+        user: userResponse,
+        token,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating alumni account:', error);
     next(error);
   }
 };
@@ -141,8 +256,11 @@ export const login = async (req, res, next) => {
       role: user.role,
     });
 
-    // Remove password from response
-    const userResponse = sanitizeUser(user);
+    // Normalize user data to match app expectations
+    const userResponse = {
+      ...sanitizeUser(user),
+      user_id: user.id, // Normalize ID field
+    };
 
     // Set cookie (optional, for browser-based auth)
     res.cookie('token', token, {
