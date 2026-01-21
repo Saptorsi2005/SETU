@@ -19,10 +19,35 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configure multer
+// File filter for ID cards - allow images and PDFs
+const idCardFileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'application/pdf',
+  ];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only JPEG, PNG, and PDF files are allowed for ID cards.'), false);
+  }
+};
+
+// Configure multer for posts/images
 export const upload = multer({
   storage,
   fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max file size
+  },
+});
+
+// Configure multer for student ID cards (images + PDFs)
+export const uploadIdCard = multer({
+  storage,
+  fileFilter: idCardFileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB max file size
   },

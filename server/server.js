@@ -4,6 +4,7 @@ import cors from 'cors';
 import aiRoutes from "./routes/aiRoutes.js";
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/authRoutes.js';
+import studentAuthRoutes from './routes/studentAuthRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
@@ -12,6 +13,7 @@ import { errorHandler, notFound } from './middleware/errorHandler.js';
 import pool from './config/database.js';
 import { patchEventsTable } from "./config/patchEventsTable.js";
 import { initPostsDatabase } from './config/initPostsDatabase.js';
+import { initStudentsDatabase } from './config/initStudentsDatabase.js';
 
 // Load environment variables
 dotenv.config();
@@ -52,6 +54,7 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
+      studentAuth: '/api/auth/student',
       admin: '/api/admin',
       events: '/api/events',
       jobs: '/api/jobs',
@@ -70,6 +73,7 @@ app.get('/api/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/student', studentAuthRoutes);
 app.use('/api/admin', adminRoutes);
 app.use("/api/ai", aiRoutes);
 app.use('/api/events', eventRoutes);
@@ -85,6 +89,7 @@ const startServer = async () => {
   try {
     await patchEventsTable();
     await initPostsDatabase();
+    await initStudentsDatabase();
 
     app.listen(PORT, () => {
       console.log(`
