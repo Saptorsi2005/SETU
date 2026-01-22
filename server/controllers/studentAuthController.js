@@ -76,7 +76,7 @@ export const studentSignup = async (req, res, next) => {
     // Validate graduation year
     const gradYear = parseInt(graduation_year);
     const currentYear = new Date().getFullYear();
-    if (isNaN(gradYear) || gradYear < currentYear || gradYear > currentYear + 10) {
+    if (isNaN(gradYear) || gradYear < currentYear -10 || gradYear > currentYear + 10) {
       return res.status(400).json({
         success: false,
         message: 'Please provide a valid graduation year.',
