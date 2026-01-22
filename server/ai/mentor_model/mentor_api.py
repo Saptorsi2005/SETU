@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from model import recommend_mentors
+from server.ai.mentor_model.model import recommend_mentors
 
 app = Flask(__name__)
 CORS(app)   # ✅ THIS IS THE FIX

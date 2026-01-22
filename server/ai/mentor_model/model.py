@@ -24,7 +24,13 @@ def matched_skills(student_skills, mentor_expertise):
 
 # ---------- Load Data ----------
 
-data = pd.read_csv("mentors.csv")
+import os
+
+BASE_DIR = os.path.dirname(__file__)
+CSV_PATH = os.path.join(BASE_DIR, "mentors.csv")
+
+data = pd.read_csv(CSV_PATH)
+
 
 vectorizer = TfidfVectorizer()
 mentor_vectors = vectorizer.fit_transform(data["Expertise"])
