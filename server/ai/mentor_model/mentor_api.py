@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from server.ai.mentor_model.model import recommend_mentors
+from .model import recommend_mentors
 
 app = Flask(__name__)
 CORS(app)   # ✅ THIS IS THE FIX
@@ -8,7 +8,7 @@ CORS(app)   # ✅ THIS IS THE FIX
 @app.route("/mentor-recommend", methods=["POST"])
 def mentor_recommend():
     data = request.get_json()
-    skills = data.get("skills", "")
+    skills = data.get("skills", [])
     return jsonify(recommend_mentors(skills))
 
 if __name__ == "__main__":
