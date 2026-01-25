@@ -9,11 +9,13 @@ import adminRoutes from './routes/adminRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
 import postRoutes from './routes/postRoutes.js';
+import connectionRoutes from './routes/connectionRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import pool from './config/database.js';
 import { patchEventsTable } from "./config/patchEventsTable.js";
 import { initPostsDatabase } from './config/initPostsDatabase.js';
 import { initStudentsDatabase } from './config/initStudentsDatabase.js';
+import { initConnectionsDatabase } from './config/initConnectionsDatabase.js';
 
 // Load environment variables
 dotenv.config();
@@ -79,6 +81,7 @@ app.use("/api/ai", aiRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/connections', connectionRoutes);
 
 // Error handling middleware (must be last)
 app.use(notFound);
@@ -90,6 +93,7 @@ const startServer = async () => {
     await patchEventsTable();
     await initPostsDatabase();
     await initStudentsDatabase();
+    await initConnectionsDatabase();
 
     app.listen(PORT, () => {
       console.log(`
