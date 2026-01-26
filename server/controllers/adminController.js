@@ -862,7 +862,7 @@ export const getAnalyticsKPIs = async (req, res, next) => {
     const lastWeekStart = new Date(currentWeekStart);
     lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
-    // Total Users
+    // Total Users (students + alumni)
     const totalUsersResult = await pool.query('SELECT COUNT(*) as count FROM users');
     const totalUsersLastWeek = await pool.query(
       'SELECT COUNT(*) as count FROM users WHERE created_at < $1',
@@ -874,75 +874,98 @@ export const getAnalyticsKPIs = async (req, res, next) => {
       ? (((totalUsers - totalUsersLast) / totalUsersLast) * 100).toFixed(1) + '%'
       : '0%';
 
-    // Verified Alumni
-    const verifiedAlumniResult = await pool.query(
-      "SELECT COUNT(*) as count FROM users WHERE role = 'alumni' AND verification_status = 'verified'"
+    // Total Alumni
+    const totalAlumniResult = await pool.query(
+      "SELECT COUNT(*) as count FROM users WHERE role = 'alumni'"
     );
-    const verifiedAlumniLastWeek = await pool.query(
-      "SELECT COUNT(*) as count FROM users WHERE role = 'alumni' AND verification_status = 'verified' AND created_at < $1",
-      [currentWeekStart]
-    );
-    const verifiedAlumni = parseInt(verifiedAlumniResult.rows[0].count);
-    const verifiedAlumniLast = parseInt(verifiedAlumniLastWeek.rows[0].count);
-    const verifiedAlumniChange = verifiedAlumniLast > 0
-      ? (((verifiedAlumni - verifiedAlumniLast) / verifiedAlumniLast) * 100).toFixed(1) + '%'
-      : '0%';
+    const totalAlumni = parseInt(totalAlumniResult.rows[0].count);
 
-    // Pending Verifications
-    const pendingVerificationsResult = await pool.query(
-      "SELECT COUNT(*) as count FROM users WHERE verification_status = 'pending'"
+    // Total Students
+    const totalStudentsResult = await pool.query(
+      "SELECT COUNT(*) as count FROM users WHERE role = 'student'"
     );
-    const pendingVerificationsLastWeek = await pool.query(
-      "SELECT COUNT(*) as count FROM users WHERE verification_status = 'pending' AND created_at < $1",
-      [currentWeekStart]
-    );
-    const pendingVerifications = parseInt(pendingVerificationsResult.rows[0].count);
-    const pendingVerificationsLast = parseInt(pendingVerificationsLastWeek.rows[0].count);
-    const pendingVerificationsChange = pendingVerificationsLast > 0
-      ? (((pendingVerifications - pendingVerificationsLast) / pendingVerificationsLast) * 100).toFixed(1) + '%'
-      : '0%';
+    const totalStudents = parseInt(totalStudentsResult.rows[0].count);
+
+    // Total Events
+    let totalEvents = 0;
+    try {
+      const eventsResult = await pool.query('SELECT COUNT(*) as count FROM events');
+      totalEvents = parseInt(eventsResult.rows[0].count);
+    } catch (err) {
+      console.warn('Events table may not exist:', err.message);
+    }
+
+    // Total Donations (placeholder for future implementation)
+    let totalDonations = 0;
+    try {
+      const donationsResult = await pool.query('SELECT COUNT(*) as count FROM donations');
+      totalDonations = parseInt(donationsResult.rows[0].count);
+    } catch (err) {
+      // Donations table doesn't exist yet - this is expected
+      console.log('Donations table not found (this is expected)');
+    }
+
+    // Verified Alumni - check if verification_status column exists
+    let verifiedAlumni = 0;
+    try {
+      const verifiedAlumniResult = await pool.query(
+        "SELECT COUNT(*) as count FROM users WHERE role = 'alumni' AND verification_status = 'verified'"
+      );
+      verifiedAlumni = parseInt(verifiedAlumniResult.rows[0].count);
+    } catch (err) {
+      // Column doesn't exist, use is_verified instead
+      try {
+        const verifiedAlumniResult = await pool.query(
+          "SELECT COUNT(*) as count FROM users WHERE role = 'alumni' AND is_verified = true"
+        );
+        verifiedAlumni = parseInt(verifiedAlumniResult.rows[0].count);
+      } catch (err2) {
+        console.warn('Verification status not available:', err2.message);
+        verifiedAlumni = 0;
+      }
+    }
 
     // Posts This Week
-    const postsThisWeekResult = await pool.query(
-      'SELECT COUNT(*) as count FROM posts WHERE created_at >= $1',
-      [currentWeekStart]
-    );
-    const postsLastWeekResult = await pool.query(
-      'SELECT COUNT(*) as count FROM posts WHERE created_at >= $1 AND created_at < $2',
-      [lastWeekStart, currentWeekStart]
-    );
-    const postsThisWeek = parseInt(postsThisWeekResult.rows[0].count);
-    const postsLastWeek = parseInt(postsLastWeekResult.rows[0].count);
+    let postsThisWeek = 0;
+    let postsLastWeek = 0;
+    try {
+      const postsThisWeekResult = await pool.query(
+        'SELECT COUNT(*) as count FROM posts WHERE created_at >= $1',
+        [currentWeekStart]
+      );
+      const postsLastWeekResult = await pool.query(
+        'SELECT COUNT(*) as count FROM posts WHERE created_at >= $1 AND created_at < $2',
+        [lastWeekStart, currentWeekStart]
+      );
+      postsThisWeek = parseInt(postsThisWeekResult.rows[0].count);
+      postsLastWeek = parseInt(postsLastWeekResult.rows[0].count);
+    } catch (err) {
+      console.warn('Posts table may not exist:', err.message);
+    }
     const postsChange = postsLastWeek > 0
       ? (((postsThisWeek - postsLastWeek) / postsLastWeek) * 100).toFixed(1) + '%'
       : '0%';
 
     // Jobs Posted
-    const jobsPostedResult = await pool.query('SELECT COUNT(*) as count FROM jobs WHERE status = $1', ['active']);
-    const jobsPostedLastWeek = await pool.query(
-      'SELECT COUNT(*) as count FROM jobs WHERE status = $1 AND created_at < $2',
-      ['active', currentWeekStart]
-    );
-    const jobsPosted = parseInt(jobsPostedResult.rows[0].count);
-    const jobsPostedLast = parseInt(jobsPostedLastWeek.rows[0].count);
-    const jobsPostedChange = jobsPostedLast > 0
-      ? (((jobsPosted - jobsPostedLast) / jobsPostedLast) * 100).toFixed(1) + '%'
-      : '0%';
+    let jobsPosted = 0;
+    try {
+      const jobsPostedResult = await pool.query('SELECT COUNT(*) as count FROM jobs WHERE status = $1', ['active']);
+      jobsPosted = parseInt(jobsPostedResult.rows[0].count);
+    } catch (err) {
+      console.warn('Jobs table may not exist:', err.message);
+    }
 
     // Event Registrations
-    const eventRegistrationsResult = await pool.query(
-      'SELECT COUNT(*) as count FROM event_registrations WHERE created_at >= $1',
-      [currentWeekStart]
-    );
-    const eventRegistrationsLastWeek = await pool.query(
-      'SELECT COUNT(*) as count FROM event_registrations WHERE created_at >= $1 AND created_at < $2',
-      [lastWeekStart, currentWeekStart]
-    );
-    const eventRegistrations = parseInt(eventRegistrationsResult.rows[0].count);
-    const eventRegistrationsLast = parseInt(eventRegistrationsLastWeek.rows[0].count);
-    const eventRegistrationsChange = eventRegistrationsLast > 0
-      ? (((eventRegistrations - eventRegistrationsLast) / eventRegistrationsLast) * 100).toFixed(1) + '%'
-      : '0%';
+    let eventRegistrations = 0;
+    try {
+      const eventRegistrationsResult = await pool.query(
+        'SELECT COUNT(*) as count FROM event_registrations WHERE registered_at >= $1',
+        [currentWeekStart]
+      );
+      eventRegistrations = parseInt(eventRegistrationsResult.rows[0].count);
+    } catch (err) {
+      console.warn('Event registrations table may not exist:', err.message);
+    }
 
     res.json({
       success: true,
@@ -952,30 +975,30 @@ export const getAnalyticsKPIs = async (req, res, next) => {
           change: totalUsersChange,
           trend: totalUsers >= totalUsersLast ? 'up' : 'down'
         },
+        totalAlumni: {
+          value: totalAlumni,
+          change: '0%',
+          trend: 'neutral'
+        },
+        totalStudents: {
+          value: totalStudents,
+          change: '0%',
+          trend: 'neutral'
+        },
+        totalEvents: {
+          value: totalEvents,
+          change: '0%',
+          trend: 'neutral'
+        },
+        totalDonations: {
+          value: totalDonations,
+          change: '0%',
+          trend: 'neutral'
+        },
         verifiedAlumni: {
           value: verifiedAlumni,
-          change: verifiedAlumniChange,
-          trend: verifiedAlumni >= verifiedAlumniLast ? 'up' : 'down'
-        },
-        pendingVerifications: {
-          value: pendingVerifications,
-          change: pendingVerificationsChange,
-          trend: pendingVerifications >= pendingVerificationsLast ? 'up' : 'down'
-        },
-        postsThisWeek: {
-          value: postsThisWeek,
-          change: postsChange,
-          trend: postsThisWeek >= postsLastWeek ? 'up' : 'down'
-        },
-        jobsPosted: {
-          value: jobsPosted,
-          change: jobsPostedChange,
-          trend: jobsPosted >= jobsPostedLast ? 'up' : 'down'
-        },
-        eventRegistrations: {
-          value: eventRegistrations,
-          change: eventRegistrationsChange,
-          trend: eventRegistrations >= eventRegistrationsLast ? 'up' : 'down'
+          change: '0%',
+          trend: 'neutral'
         }
       }
     });
@@ -1190,3 +1213,153 @@ export const getPostsActivity = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Get alumni verification status distribution
+ */
+export const getAlumniVerificationStatus = async (req, res, next) => {
+  try {
+    let verified = 0;
+    let pending = 0;
+    let rejected = 0;
+    let total = 0;
+
+    // Try to get total alumni first
+    const totalAlumniResult = await pool.query(
+      "SELECT COUNT(*) as count FROM users WHERE role = 'alumni'"
+    );
+    total = parseInt(totalAlumniResult.rows[0].count);
+
+    // Check if verification_status column exists
+    try {
+      const statusResult = await pool.query(
+        `SELECT 
+          verification_status,
+          COUNT(*) as count
+        FROM users
+        WHERE role = 'alumni'
+        GROUP BY verification_status`
+      );
+
+      statusResult.rows.forEach(row => {
+        const status = row.verification_status?.toLowerCase();
+        const count = parseInt(row.count);
+        if (status === 'verified') verified = count;
+        else if (status === 'pending') pending = count;
+        else if (status === 'rejected') rejected = count;
+        else pending += count; // Unknown status treated as pending
+      });
+    } catch (err) {
+      // verification_status column doesn't exist, try is_verified
+      try {
+        const verifiedResult = await pool.query(
+          "SELECT COUNT(*) as count FROM users WHERE role = 'alumni' AND is_verified = true"
+        );
+        verified = parseInt(verifiedResult.rows[0].count);
+        pending = total - verified;
+      } catch (err2) {
+        // Neither column exists, all are pending
+        pending = total;
+      }
+    }
+
+    const labels = ['Verified', 'Pending', 'Rejected'];
+    const data = [verified, pending, rejected];
+
+    res.json({
+      success: true,
+      data: {
+        labels,
+        datasets: [{
+          label: 'Alumni',
+          data
+        }],
+        total: total,
+        verified: verified,
+        pending: pending,
+        rejected: rejected
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching alumni verification status:', error);
+    next(error);
+  }
+};
+
+/**
+ * Get student skills/interests distribution
+ */
+export const getStudentSkills = async (req, res, next) => {
+  try {
+    // Get all students with skills
+    const result = await pool.query(
+      `SELECT skills, interests 
+       FROM users 
+       WHERE role = 'student' 
+       AND (skills IS NOT NULL OR interests IS NOT NULL)`
+    );
+
+    // Count skills
+    const skillsMap = new Map();
+
+    result.rows.forEach(row => {
+      // Process skills array
+      if (row.skills && Array.isArray(row.skills)) {
+        row.skills.forEach(skill => {
+          if (skill && skill.trim()) {
+            const skillName = skill.trim();
+            skillsMap.set(skillName, (skillsMap.get(skillName) || 0) + 1);
+          }
+        });
+      }
+      
+      // Process interests array
+      if (row.interests && Array.isArray(row.interests)) {
+        row.interests.forEach(interest => {
+          if (interest && interest.trim()) {
+            const interestName = interest.trim();
+            skillsMap.set(interestName, (skillsMap.get(interestName) || 0) + 1);
+          }
+        });
+      }
+    });
+
+    // Convert to array and sort by count
+    const skillsArray = Array.from(skillsMap.entries())
+      .map(([skill, count]) => ({ skill, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10); // Top 10 skills
+
+    const labels = skillsArray.map(s => s.skill);
+    const data = skillsArray.map(s => s.count);
+
+    res.json({
+      success: true,
+      data: {
+        labels,
+        datasets: [{
+          label: 'Students',
+          data
+        }],
+        totalSkills: skillsMap.size,
+        topSkills: skillsArray
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching student skills:', error);
+    // Return empty data instead of error to prevent dashboard from breaking
+    res.json({
+      success: true,
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Students',
+          data: []
+        }],
+        totalSkills: 0,
+        topSkills: []
+      }
+    });
+  }
+};
+

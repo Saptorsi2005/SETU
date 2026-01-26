@@ -1,6 +1,23 @@
 import express from 'express';
 import multer from 'multer';
-import { adminLogin, createAdmin, getAdminProfile, getAllUsers, getDirectory, exportDirectoryCSV, exportDirectoryExcel, exportDirectoryPDF, importDirectoryCSV } from '../controllers/adminController.js';
+import { 
+  adminLogin, 
+  createAdmin, 
+  getAdminProfile, 
+  getAllUsers, 
+  getDirectory, 
+  exportDirectoryCSV, 
+  exportDirectoryExcel, 
+  exportDirectoryPDF, 
+  importDirectoryCSV, 
+  getAnalyticsKPIs, 
+  getUserRegistrationsTrend, 
+  getAlumniByDepartment, 
+  getUsersByRole, 
+  getPostsActivity,
+  getAlumniVerificationStatus,
+  getStudentSkills
+} from '../controllers/adminController.js';
 import { authenticate, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -35,5 +52,14 @@ router.get('/directory/export/csv', authenticate, isAdmin, exportDirectoryCSV);
 router.get('/directory/export/excel', authenticate, isAdmin, exportDirectoryExcel);
 router.get('/directory/export/pdf', authenticate, isAdmin, exportDirectoryPDF);
 router.post('/directory/import/csv', authenticate, isAdmin, upload.single('file'), importDirectoryCSV);
+
+// Analytics routes
+router.get('/analytics/kpis', authenticate, isAdmin, getAnalyticsKPIs);
+router.get('/analytics/registrations-trend', authenticate, isAdmin, getUserRegistrationsTrend);
+router.get('/analytics/alumni-by-department', authenticate, isAdmin, getAlumniByDepartment);
+router.get('/analytics/users-by-role', authenticate, isAdmin, getUsersByRole);
+router.get('/analytics/posts-activity', authenticate, isAdmin, getPostsActivity);
+router.get('/analytics/alumni-verification-status', authenticate, isAdmin, getAlumniVerificationStatus);
+router.get('/analytics/student-skills', authenticate, isAdmin, getStudentSkills);
 
 export default router;
