@@ -91,6 +91,7 @@ def recommend_mentors(student_skills, mentors, limit=50, min_score=0.0):
                 "email": mentor.get("email"),
                 "skills": mentor_skills,
                 "experience": mentor.get("experience", 0),
+                "profile_image": mentor.get("profile_image"),  # ✅ ADD THIS LINE
                 "score": float(similarity_scores[idx]),
                 "skill_match_count": skill_match_count,
                 "matched_skills": matched_skills(

@@ -40,11 +40,12 @@ export const recommendMentors = async (req, res) => {
 
     // 3️⃣ Fetch mentors (exclude self)
     const mentorResult = await pool.query(
-      `SELECT id, name, email, skills, experience
+      `SELECT id, name, email, skills, experience, profile_image
        FROM users
        WHERE role = $1 AND id != $2`,
       [recommendationRole, userId]
     );
+console.log("Mentors from DB:", mentorResult.rows);
 
     const mentors = mentorResult.rows.map((m) => ({
       id: m.id,
@@ -53,6 +54,7 @@ export const recommendMentors = async (req, res) => {
       skills:
         typeof m.skills === "string" ? JSON.parse(m.skills) : m.skills || [],
       experience: m.experience || 0,
+       profile_image: m.profile_image || null, // ✅ ADD THIS
     }));
 
     console.log("Mentors sent to AI:", mentors.length);
