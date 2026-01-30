@@ -91,6 +91,10 @@ def recommend_mentors(student_skills, mentors, limit=50, min_score=0.0):
         student_skills = student_skills.split(",")
 
     student_skills_text = " ".join(parse_skills(student_skills))
+    
+    # Calculate total number of unique student skills
+    student_skills_set = normalize(student_skills_text)
+    total_student_skills = len(student_skills_set) if student_skills_set else 1
 
     if not mentors:
         return []
@@ -118,6 +122,10 @@ def recommend_mentors(student_skills, mentors, limit=50, min_score=0.0):
         skill_match_count = count_skill_overlap(
             student_skills_text, mentor_skills
         )
+        
+        # Calculate match percentage based on skill overlap
+        match_percentage = round((skill_match_count / total_student_skills) * 100)
+        print(f"🔢 Mentor {mentor.get('name')}: skill_match_count={skill_match_count}, total_student_skills={total_student_skills}, match_percentage={match_percentage}%")
 
         if similarity_scores[idx] >= min_score:
             results.append({
@@ -130,6 +138,7 @@ def recommend_mentors(student_skills, mentors, limit=50, min_score=0.0):
                 "profile_image": mentor.get("profile_image"),
                 "score": float(similarity_scores[idx]),
                 "skill_match_count": skill_match_count,
+                "match_percentage": match_percentage,
                 "matched_skills": matched_skills(
                     student_skills_text, mentor_skills
                 )
