@@ -119,6 +119,24 @@ export const studentSignup = async (req, res, next) => {
       role: user.role,
     });
 
+    // --- START VERIFICATION PROCESS ---
+    let verificationResult = { status: 'PENDING', isVerified: false };
+    if (idCardUrl) {
+      try {
+        // Import dynamically if needed to avoid circular dep, or just use import at top
+        const { verifyDocument } = await import('./verificationController.js');
+        verificationResult = await verifyDocument(user.id, idCardUrl, 'student');
+
+        // Update user object with fresh status
+        user.verification_status = verificationResult.status;
+        user.is_verified = verificationResult.isVerified;
+      } catch (verError) {
+        console.error('Verification process failed:', verError);
+        // We don't fail the signup, just leave it as PENDING (default)
+      }
+    }
+    // ----------------------------------
+
     res.status(201).json({
       success: true,
       message: 'Student account created successfully!',
@@ -133,6 +151,8 @@ export const studentSignup = async (req, res, next) => {
           batch_year: user.batch_year,
           department: user.department,
           verification_document: user.verification_document,
+          verification_status: user.verification_status || 'PENDING',
+          is_verified: user.is_verified || false,
           created_at: user.created_at,
         },
         token,
@@ -212,6 +232,8 @@ export const studentLogin = async (req, res, next) => {
         user: {
           ...userData,
           user_id: userData.id, // Normalize ID field
+          verification_status: userData.verification_status,
+          is_verified: userData.is_verified,
         },
         token,
       },

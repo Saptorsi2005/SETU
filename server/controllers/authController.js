@@ -183,10 +183,28 @@ export const alumniSignup = async (req, res, next) => {
       role: user.role,
     });
 
+    // --- START VERIFICATION PROCESS ---
+    let verificationResult = { status: 'PENDING', isVerified: false };
+    if (documentUrl) {
+      try {
+        const { verifyDocument } = await import('./verificationController.js');
+        verificationResult = await verifyDocument(user.id, documentUrl, 'alumni');
+
+        // Update user object with fresh status
+        user.verification_status = verificationResult.status;
+        user.is_verified = verificationResult.isVerified;
+      } catch (verError) {
+        console.error('Alumni verification process failed:', verError);
+      }
+    }
+    // ----------------------------------
+
     // Normalize user data to match app expectations
     const userResponse = {
       ...sanitizeUser(user),
       user_id: user.id,
+      verification_status: user.verification_status || 'PENDING',
+      is_verified: user.is_verified || false,
     };
 
     res.status(201).json({
@@ -260,6 +278,8 @@ export const login = async (req, res, next) => {
     const userResponse = {
       ...sanitizeUser(user),
       user_id: user.id, // Normalize ID field
+      verification_status: user.verification_status,
+      is_verified: user.is_verified,
     };
 
     // Set cookie (optional, for browser-based auth)

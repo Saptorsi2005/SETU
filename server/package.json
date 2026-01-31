@@ -32,7 +32,8 @@
     "pdfkit": "^0.17.2",
     "pg": "^8.11.3",
     "resend": "^6.8.0",
-    "stripe": "^20.2.0"
+    "stripe": "^20.2.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
