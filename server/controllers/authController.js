@@ -283,11 +283,13 @@ export const login = async (req, res, next) => {
     };
 
     // Set cookie (optional, for browser-based auth)
-    res.cookie('token', token, {
+    res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: true,        // REQUIRED (Render is HTTPS)
+      sameSite: "none",    // REQUIRED (Vercel ↔ Render)
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+
 
     res.status(200).json({
       success: true,

@@ -4,12 +4,7 @@ import { generateToken } from '../utils/jwt.js';
 import { uploadDocumentToCloudinary } from '../config/cloudinary.js';
 
 /**
- * Student Auth Controller
- * Handles student signup with ID card upload
- */
-
-/**
- * Student signup (direct registration without OTP)
+ * Student signup
  * POST /api/auth/student/signup
  */
 export const studentSignup = async (req, res, next) => {
@@ -23,31 +18,29 @@ export const studentSignup = async (req, res, next) => {
       graduation_year,
     } = req.body;
 
-    // Validate required fields
     if (!full_name || !email || !password || !roll_number || !department || !graduation_year) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required: full_name, email, password, roll_number, department, graduation_year.',
+        message: 'All fields are required.',
       });
     }
 
     if (!isValidEmail(email)) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide a valid email address.',
+        message: 'Invalid email address.',
       });
     }
 
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 6 characters long.',
+        message: 'Password must be at least 6 characters.',
       });
     }
 
     const lowerEmail = email.toLowerCase();
 
-    // Check if user already exists in users table
     const existingUser = await pool.query(
       'SELECT * FROM users WHERE email = $1',
       [lowerEmail]
@@ -56,48 +49,37 @@ export const studentSignup = async (req, res, next) => {
     if (existingUser.rows.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'A user with this email already exists.',
+        message: 'User already exists.',
       });
     }
 
-    // Validate graduation year
     const gradYear = parseInt(graduation_year);
     const currentYear = new Date().getFullYear();
     if (isNaN(gradYear) || gradYear < currentYear - 10 || gradYear > currentYear + 10) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide a valid graduation year.',
+        message: 'Invalid graduation year.',
       });
     }
 
-    // Handle ID card upload
     let idCardUrl = null;
     if (req.file) {
-      try {
-        idCardUrl = await uploadDocumentToCloudinary(
-          req.file.buffer,
-          req.file.mimetype,
-          'setu/student_ids'
-        );
-      } catch (uploadError) {
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to upload student ID card. Please try again.',
-        });
-      }
+      idCardUrl = await uploadDocumentToCloudinary(
+        req.file.buffer,
+        req.file.mimetype,
+        'setu/student_ids'
+      );
     }
 
-    // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Create student account in users table
     const result = await pool.query(
       `INSERT INTO users (
-        name, email, password, role, college, batch_year, 
+        name, email, password, role, college, batch_year,
         department, verification_document
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      RETURNING *`,
       [
         full_name,
         lowerEmail,
@@ -106,36 +88,18 @@ export const studentSignup = async (req, res, next) => {
         'Academy of Technology',
         gradYear,
         department,
-        idCardUrl
+        idCardUrl,
       ]
     );
 
     const user = result.rows[0];
 
-    // Generate JWT token
+    // ✅ Token generation is OK here (NO cookie on signup)
     const token = generateToken({
       id: user.id,
       email: user.email,
       role: user.role,
     });
-
-    // --- START VERIFICATION PROCESS ---
-    let verificationResult = { status: 'PENDING', isVerified: false };
-    if (idCardUrl) {
-      try {
-        // Import dynamically if needed to avoid circular dep, or just use import at top
-        const { verifyDocument } = await import('./verificationController.js');
-        verificationResult = await verifyDocument(user.id, idCardUrl, 'student');
-
-        // Update user object with fresh status
-        user.verification_status = verificationResult.status;
-        user.is_verified = verificationResult.isVerified;
-      } catch (verError) {
-        console.error('Verification process failed:', verError);
-        // We don't fail the signup, just leave it as PENDING (default)
-      }
-    }
-    // ----------------------------------
 
     res.status(201).json({
       success: true,
@@ -143,46 +107,41 @@ export const studentSignup = async (req, res, next) => {
       data: {
         user: {
           id: user.id,
-          user_id: user.id, // Normalize ID field
+          user_id: user.id,
           name: user.name,
           email: user.email,
           role: user.role,
           college: user.college,
           batch_year: user.batch_year,
           department: user.department,
-          verification_document: user.verification_document,
           verification_status: user.verification_status || 'PENDING',
           is_verified: user.is_verified || false,
-          created_at: user.created_at,
         },
-        token,
+        token, // optional
       },
     });
   } catch (error) {
-    console.error('Error creating student account:', error);
     next(error);
   }
 };
 
 /**
- * Student login (separate from regular login)
+ * Student login
  * POST /api/auth/student/login
  */
 export const studentLogin = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Validate inputs
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required.',
+        message: 'Email and password required.',
       });
     }
 
     const lowerEmail = email.toLowerCase();
 
-    // Find user with role='student'
     const result = await pool.query(
       'SELECT * FROM users WHERE email = $1 AND role = $2',
       [lowerEmail, 'student']
@@ -197,17 +156,14 @@ export const studentLogin = async (req, res, next) => {
 
     const user = result.rows[0];
 
-    // Check if user is active
     if (!user.is_active) {
       return res.status(403).json({
         success: false,
-        message: 'Your account has been deactivated. Please contact support.',
+        message: 'Account deactivated.',
       });
     }
 
-    // Verify password
     const isValidPassword = await comparePassword(password, user.password);
-
     if (!isValidPassword) {
       return res.status(401).json({
         success: false,
@@ -215,14 +171,20 @@ export const studentLogin = async (req, res, next) => {
       });
     }
 
-    // Generate JWT token
     const token = generateToken({
       id: user.id,
       email: user.email,
       role: user.role,
     });
 
-    // Return user data normalized to match app expectations
+    // ✅ CRITICAL FIX — SET COOKIE
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: true,     // REQUIRED on HTTPS (Vercel + Render)
+      sameSite: 'none', // REQUIRED for cross-domain
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     const { password: _, ...userData } = user;
 
     res.status(200).json({
@@ -231,15 +193,14 @@ export const studentLogin = async (req, res, next) => {
       data: {
         user: {
           ...userData,
-          user_id: userData.id, // Normalize ID field
+          user_id: userData.id,
           verification_status: userData.verification_status,
           is_verified: userData.is_verified,
         },
-        token,
+        token, // optional (frontend may ignore)
       },
     });
   } catch (error) {
-    console.error('Error during student login:', error);
     next(error);
   }
 };

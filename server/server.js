@@ -33,14 +33,38 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// ✅ CORS FIX (IMPORTANT FOR VERCEL)
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://setu-client-pearl.vercel.app"
+];
+
 app.use(
   cors({
-    origin: true, // allow all origins (safe for now)
+    origin: function (origin, callback) {
+      // allow requests with no origin (mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
-    exposedHeaders: ['Content-Disposition'],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept"
+    ],
+    exposedHeaders: ["Content-Disposition"]
   })
 );
+
+// ✅ THIS LINE IS CRITICAL (preflight fix)
+app.options("*", cors());
 
 // ✅ Webhook must come before json()
 app.use('/api/donations/webhook', express.raw({ type: 'application/json' }));
