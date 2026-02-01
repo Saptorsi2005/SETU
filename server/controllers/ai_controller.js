@@ -1,6 +1,8 @@
 import pool from "../config/database.js";
 import axios from "axios";
 
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL;
+
 export const recommendMentors = async (req, res) => {
   try {
     if (!req.user) {
@@ -25,68 +27,58 @@ export const recommendMentors = async (req, res) => {
         : userResult.rows[0].skills || [];
 
     const userSkills = userSkillsArray
-      .flatMap(s =>
+      .flatMap((s) =>
         typeof s === "string"
-          ? s.split(",").map(x => x.trim().toLowerCase())
+          ? s.split(",").map((x) => x.trim().toLowerCase())
           : []
       );
 
-    console.log("User skills:", userSkills);
-
     // 2️⃣ Decide recommendation type
     let recommendationRole;
-
-    if (role === "student") {
-      recommendationRole = "alumni";
-    } else if (role === "alumni") {
+    if (role === "student" || role === "alumni") {
       recommendationRole = "alumni";
     } else {
       return res.status(403).json({ message: "Invalid role" });
     }
 
-    // 3️⃣ Fetch mentors (exclude self)
+    // 3️⃣ Fetch mentors
     const mentorResult = await pool.query(
       `SELECT id, name, email, skills, experience, profile_image
        FROM users
        WHERE role = $1 AND id != $2`,
       [recommendationRole, userId]
     );
-    console.log("Mentors from DB:", mentorResult.rows);
 
     const mentors = mentorResult.rows.map((m) => ({
       id: m.id,
       name: m.name,
       email: m.email,
       skills: Array.isArray(m.skills)
-        ? m.skills.flatMap(s =>
+        ? m.skills.flatMap((s) =>
           typeof s === "string"
-            ? s.split(",").map(x => x.trim().toLowerCase())
+            ? s.split(",").map((x) => x.trim().toLowerCase())
             : []
         )
         : typeof m.skills === "string"
-          ? m.skills.split(",").map(x => x.trim().toLowerCase())
+          ? m.skills.split(",").map((x) => x.trim().toLowerCase())
           : [],
       experience: m.experience || 0,
       profile_image: m.profile_image || null,
     }));
 
-    // 4️⃣ Call AI
+    // 4️⃣ Call AI service (FIXED)
     const aiResponse = await axios.post(
-      "http://127.0.0.1:8000/mentor-recommend",
+      `${AI_SERVICE_URL}/mentor-recommend`,
       {
         student_skills: userSkills,
         mentors,
-      }
+      },
+      { timeout: 20000 }
     );
-
-    console.log("🔍 AI Response received:", aiResponse.data.length, "mentors");
-    if (aiResponse.data.length > 0) {
-      console.log("First AI result:", aiResponse.data[0]);
-    }
 
     return res.json(aiResponse.data);
   } catch (error) {
-    console.error("Mentor recommendation error:", error);
+    console.error("Mentor recommendation error:", error.message);
     return res.status(500).json({ message: "Mentor recommendation failed" });
   }
 };

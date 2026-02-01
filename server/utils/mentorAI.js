@@ -1,15 +1,18 @@
 import axios from "axios";
 
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL;
+
 export const getMentorRecommendationsFromAI = async (skills) => {
   try {
     const response = await axios.post(
-      "http://127.0.0.1:8000/mentor-recommend",
-      { skills }
+      `${AI_SERVICE_URL}/mentor-recommend`,
+      { skills },
+      { timeout: 20000 }
     );
 
     return response.data;
   } catch (error) {
     console.error("AI error:", error.message);
-    throw new Error("AI service not reachable");
+    return []; // 👈 fail-safe so backend doesn’t crash
   }
 };
