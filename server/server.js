@@ -1,8 +1,9 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import aiRoutes from "./routes/aiRoutes.js";
 import cookieParser from 'cookie-parser';
+
+import aiRoutes from "./routes/aiRoutes.js";
 import authRoutes from './routes/authRoutes.js';
 import studentAuthRoutes from './routes/studentAuthRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
@@ -13,8 +14,10 @@ import connectionRoutes from './routes/connectionRoutes.js';
 import donationRoutes from './routes/donationRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import pool from './config/database.js';
+
 import { patchEventsTable } from "./config/patchEventsTable.js";
 import { initPostsDatabase } from './config/initPostsDatabase.js';
 import { initStudentsDatabase } from './config/initStudentsDatabase.js';
@@ -23,72 +26,61 @@ import { initDonationsDatabase } from './config/initDonationsDatabase.js';
 import { initLocationsDatabase } from './config/initLocationsDatabase.js';
 import { initMessagingDatabase } from './config/initMessagingDatabase.js';
 
-// Load environment variables
+// Load env
 dotenv.config();
 
-// Initialize Express app
+// App
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Middleware
+// ✅ CORS FIX (IMPORTANT FOR VERCEL)
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174"
-    ],
+    origin: true, // allow all origins (safe for now)
     credentials: true,
-    exposedHeaders: ['Content-Disposition'], // Allow frontend to read Content-Disposition header
+    exposedHeaders: ['Content-Disposition'],
   })
 );
 
-// Webhook route MUST come before express.json() to receive raw body
+// ✅ Webhook must come before json()
 app.use('/api/donations/webhook', express.raw({ type: 'application/json' }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ✅ LIMIT BODY SIZE (CRITICAL FOR OCR)
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(cookieParser());
 
-// Test database connection on startup
+// ✅ DB test
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
     console.error('❌ Database connection failed:', err);
   } else {
-    console.log('✅ Database connected successfully at:', res.rows[0].now);
+    console.log('✅ Database connected at:', res.rows[0].now);
   }
 });
 
-// Routes
+// Root
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'SETU API Server is running!',
-    version: '1.0.0',
-    endpoints: {
-      auth: '/api/auth',
-      studentAuth: '/api/auth/student',
-      admin: '/api/admin',
-      events: '/api/events',
-      jobs: '/api/jobs',
-      posts: '/api/posts',
-      messages: '/api/messages',
-    },
+    message: 'SETU API Server is running',
   });
 });
 
+// Health
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
-    message: 'Server is healthy',
-    timestamp: new Date().toISOString(),
+    message: 'Server healthy',
+    time: new Date().toISOString(),
   });
 });
 
-// API Routes
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/student', studentAuthRoutes);
 app.use('/api/admin', adminRoutes);
-app.use("/api", aiRoutes);
+app.use('/api', aiRoutes); // OCR routes
 app.use('/api/events', eventRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/posts', postRoutes);
@@ -97,11 +89,11 @@ app.use('/api/donations', donationRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/messages', messageRoutes);
 
-// Error handling middleware (must be last)
+// Errors
 app.use(notFound);
 app.use(errorHandler);
 
-// ---- Start server after DB patch ----
+// ✅ START SERVER AFTER DB INIT
 const startServer = async () => {
   try {
     await patchEventsTable();
@@ -112,26 +104,21 @@ const startServer = async () => {
     await initLocationsDatabase();
     await initMessagingDatabase();
 
-    app.listen(PORT, () => {
-      console.log(`
-╔════════════════════════════════════════╗
-║   🚀 SETU Server Running               ║
-║   📡 Port: ${PORT}                     
-║   🌍 Environment: ${process.env.NODE_ENV || 'development'}       
-║   🔗 URL: http://localhost:${PORT}     
-╚════════════════════════════════════════╝
-      `);
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 SETU Server running on port ${PORT}`);
     });
 
-  } catch {
+  } catch (err) {
+    console.error('Startup failed:', err);
     process.exit(1);
   }
 };
 
 startServer();
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', () => {
+// Safety
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err);
   process.exit(1);
 });
 

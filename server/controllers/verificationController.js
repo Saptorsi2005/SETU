@@ -1,19 +1,36 @@
 import Tesseract from 'tesseract.js';
 import pool from '../config/database.js';
 
+// ---- OCR WORKER (ADD THIS) ----
+let worker = null;
+let workerReady = false;
+let ocrBusy = false;
+
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+
 /**
  * Perform OCR on the uploaded image buffer or URL
  * @param {Buffer|string} imageSource - Buffer or URL of the image
  */
 const performOCR = async (imageSource) => {
     try {
-        const { data: { text } } = await Tesseract.recognize(imageSource, 'eng');
-        return text;
+        if (!worker) {
+            worker = await Tesseract.createWorker('eng');
+            await worker.initialize('eng');
+            workerReady = true;
+            console.log('✅ Tesseract worker initialized');
+        }
+
+        const { data: { text } = {} } = await worker.recognize(imageSource);
+        return text || null;
+
     } catch (error) {
         console.error('OCR Error:', error);
         return null;
     }
 };
+
 
 /**
  * Detect document type from OCR text
@@ -360,7 +377,15 @@ export const verifyDocument = async (userId, imageSource, userType) => {
     console.log(`Starting verification for user ${userId} (${userType})`);
 
     // 1. OCR
+    while (ocrBusy) {
+        await wait(300);
+    }
+    ocrBusy = true;
+
     const ocrText = await performOCR(imageSource);
+
+    ocrBusy = false;
+
     if (!ocrText) {
         return { status: 'FAILED', reason: 'OCR failed to read document' };
     }
