@@ -491,7 +491,8 @@ const matchWithMasterDB = async (extractedData, userType) => {
  * @param {string} userType - 'student' or 'alumni'
  */
 export const verifyDocument = async (userId, imageSource, userType) => {
-    console.log(`Starting verification for user ${userId} (${userType})`);
+    console.log(`🚀 [VERIFY:${userType.toUpperCase()}] userId=${userId}`);
+
 
     // 1. OCR
     while (ocrBusy) {
