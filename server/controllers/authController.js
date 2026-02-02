@@ -185,18 +185,27 @@ export const alumniSignup = async (req, res, next) => {
 
     // --- START VERIFICATION PROCESS ---
     let verificationResult = { status: 'PENDING', isVerified: false };
-    if (documentUrl) {
-      try {
-        const { verifyDocument } = await import('./verificationController.js');
-        verificationResult = await verifyDocument(user.id, documentUrl, 'alumni');
 
-        // Update user object with fresh status
-        user.verification_status = verificationResult.status;
-        user.is_verified = verificationResult.isVerified;
-      } catch (verError) {
-        console.error('Alumni verification process failed:', verError);
+    try {
+      if (!documentUrl) {
+        console.warn('⚠️ No document URL, skipping OCR');
+      } else {
+        const { verifyDocument } = await import('./verificationController.js');
+
+        console.log('🚀 Starting verification for alumni:', user.id);
+
+        verificationResult = await verifyDocument(
+          user.id,
+          documentUrl,
+          'alumni'
+        );
+
+        console.log('✅ Verification result:', verificationResult);
       }
+    } catch (err) {
+      console.error('❌ Verification crashed:', err);
     }
+
     // ----------------------------------
 
     // Normalize user data to match app expectations
