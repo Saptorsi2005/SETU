@@ -257,25 +257,25 @@ export const getDirectory = async (req, res, next) => {
         WHERE role = 'alumni'
         
         UNION ALL
-        
-        SELECT 
-          student_id as id,
-          full_name as name,
-          email,
-          'student' as role,
-          department,
-          graduation_year as year,
-          ARRAY[]::text[] as skills,
-          NULL as current_company,
-          NULL as current_position,
-          NULL as location,
-          NULL as linkedin_url,
-          NULL as github_url,
-          NULL as bio,
-          NULL as profile_image,
-          created_at
-        FROM students
-        WHERE is_email_verified = true
+
+SELECT 
+  id,
+  name,
+  email,
+  'student' as role,
+  department,
+  batch_year as year,
+  skills,
+  NULL as current_company,
+  NULL as current_position,
+  NULL as location,
+  NULL as linkedin_url,
+  NULL as github_url,
+  NULL as bio,
+  NULL as profile_image,
+  created_at
+FROM users
+WHERE role = 'student'
       )
       SELECT * FROM combined_users
       WHERE 1=1
@@ -335,17 +335,17 @@ export const getDirectory = async (req, res, next) => {
         WHERE role = 'alumni'
         
         UNION ALL
-        
-        SELECT 
-          student_id as id,
-          full_name as name,
-          email,
-          'student' as role,
-          department,
-          graduation_year as year,
-          created_at
-        FROM students
-        WHERE is_email_verified = true
+
+SELECT 
+  id,
+  name,
+  email,
+  'student' as role,
+  department,
+  batch_year as year,
+  created_at
+FROM users
+WHERE role = 'student'
       )
       SELECT COUNT(*) FROM combined_users
       WHERE 1=1
